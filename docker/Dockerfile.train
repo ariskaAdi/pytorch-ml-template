@@ -1,0 +1,36 @@
+# Training image: CUDA + PyTorch preinstalled. Also usable as a RunPod custom template.
+# Build from the repo root:  docker build -f docker/Dockerfile.train -t <user>/mltemplate-train .
+#
+# Code lives in /app on purpose: RunPod mounts the network volume at /workspace,
+# which would hide anything copied there. Write outputs to the volume instead:
+#   python scripts/train.py run_dir=/workspace/outputs/my_run
+#
+# GPU compatibility (changed from 2.5.1-cuda12.4):
+#   RTX 5090 / RTX 50xx / B200 use the Blackwell architecture (sm_120 / sm_100).
+#   Blackwell needs PyTorch >= 2.7 built with CUDA >= 12.8. With the old
+#   2.5.1-cuda12.4 image, training on a 5090 fails with
+#   "no kernel image is available for execution on the device".
+#   CUDA 12.8 images still run on older GPUs (RTX 3090/4090, A6000, L40S, A100, H100),
+#   so one image covers every GPU type on RunPod.
+#   The pod's NVIDIA driver must support CUDA 12.8 (driver >= 570); in RunPod's
+#   pod filter, pick CUDA version 12.8 or newer.
+#
+# Libraries used in later phases also need Blackwell-ready versions on a 5090:
+#   bitsandbytes >= 0.45.3 (QLoRA), a recent vLLM, TensorRT >= 10.8.
+FROM pytorch/pytorch:2.7.0-cuda12.8-cudnn9-runtime
+
+ENV PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    HF_HOME=/workspace/hf_cache
+
+WORKDIR /app
+
+# Install dependencies first so code changes don't invalidate this layer.
+COPY pyproject.toml README.md ./
+COPY src ./src
+RUN pip install -e ".[tracking]"
+
+COPY configs ./configs
+COPY scripts ./scripts
+
+CMD ["python", "scripts/train.py"]

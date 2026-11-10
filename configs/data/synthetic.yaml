@@ -1,0 +1,7 @@
+name: synthetic
+num_samples: 4096
+val_fraction: 0.1
+noise: 1.0          # per-feature noise std
+separation: 0.4     # scale of class centers (smaller = harder)
+in_dim: ${model.in_dim}
+num_classes: ${model.num_classes}

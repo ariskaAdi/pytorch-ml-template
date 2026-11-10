@@ -1,0 +1,44 @@
+# Main training config. Every value can be overridden from the command line:
+#   python scripts/train.py train.lr=1.0e-3 train.precision=fp32 experiment_name=lr_test
+defaults:
+  - model: mlp
+  - data: synthetic
+  - _self_
+  - override hydra/job_logging: stdout
+
+task: classification                  # see src/mltemplate/tasks/__init__.py
+experiment_name: debug
+run_dir: outputs/${experiment_name}   # checkpoints, metrics and run info go here
+seed: 42
+deterministic: false                  # true = slower but bit-reproducible kernels
+
+train:
+  max_steps: 500              # optimizer steps (not micro-batches)
+  batch_size: 64              # micro-batch size per GPU
+  grad_accum_steps: 1         # effective batch = batch_size * grad_accum_steps * num_gpus
+  lr: 3.0e-3
+  weight_decay: 0.01
+  betas: [0.9, 0.95]
+  grad_clip: 1.0              # 0 disables clipping (grad norm is still logged)
+  warmup_steps: 50
+  min_lr_ratio: 0.1           # cosine decays to lr * min_lr_ratio
+  precision: bf16             # fp32 | bf16 | fp16
+  compile: false              # torch.compile the model
+  num_workers: 0
+  log_every: 10
+  eval_every: 100
+  save_every: 100
+  resume: true                # continue from run_dir/checkpoints/last.pt if it exists
+
+tracking:
+  backend: console            # console | wandb
+  project: pytorch-ml-template
+  entity: null
+
+# Hydra's own output folders are disabled: run_dir above is the single source of truth.
+hydra:
+  run:
+    dir: .
+  output_subdir: null
+  job:
+    chdir: false
